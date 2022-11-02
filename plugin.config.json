@@ -1,3 +1,5 @@
 {
-	"extraScripts": []
+    "extraScripts": [
+        "enhanced_editing.ts"
+    ]
 }
