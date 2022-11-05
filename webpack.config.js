@@ -11,7 +11,6 @@ const crypto = require('crypto');
 const fs = require('fs-extra');
 const chalk = require('chalk');
 const CopyPlugin = require('copy-webpack-plugin');
-const WebpackOnBuildPlugin = require('on-build-webpack');
 const tar = require('tar');
 const glob = require('glob');
 const execSync = require('child_process').execSync;
@@ -33,6 +32,13 @@ const allPossibleCategories = ['appearance', 'developer tools', 'productivity', 
 const manifest = readManifest(manifestPath);
 const pluginArchiveFilePath = path.resolve(publishDir, `${manifest.id}.jpl`);
 const pluginInfoFilePath = path.resolve(publishDir, `${manifest.id}.json`);
+
+const { builtinModules } = require('node:module');
+
+const moduleFallback = {};
+for (const moduleName of builtinModules) {
+	moduleFallback[moduleName] = false;
+}
 
 function validatePackageJson() {
 	const content = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
@@ -145,6 +151,7 @@ const pluginConfig = Object.assign({}, baseConfig, {
 		alias: {
 			api: path.resolve(__dirname, 'api'),
 		},
+		fallback: moduleFallback,
 		// JSON files can also be required from scripts so we include this.
 		// https://github.com/joplin/plugin-bibtex/pull/2
 		extensions: ['.js', '.tsx', '.ts', '.json'],
@@ -179,6 +186,7 @@ const extraScriptConfig = Object.assign({}, baseConfig, {
 		alias: {
 			api: path.resolve(__dirname, 'api'),
 		},
+		fallback: moduleFallback,
 		extensions: ['.js', '.tsx', '.ts', '.json'],
 	},
 });
@@ -186,11 +194,18 @@ const extraScriptConfig = Object.assign({}, baseConfig, {
 const createArchiveConfig = {
 	stats: 'errors-only',
 	entry: './dist/index.js',
+	resolve: {
+		fallback: moduleFallback,
+	},
 	output: {
 		filename: 'index.js',
 		path: publishDir,
 	},
-	plugins: [new WebpackOnBuildPlugin(onBuildCompleted)],
+	plugins: [{
+		apply(compiler) {
+			compiler.hooks.done.tap('archiveOnBuildListener', onBuildCompleted);
+		},
+	}],
 };
 
 function resolveExtraScriptPath(name) {
@@ -231,11 +246,8 @@ function buildExtraScriptConfigs(userConfig) {
 	return output;
 }
 
-function main(processArgv) {
-	const yargs = require('yargs/yargs');
-	const argv = yargs(processArgv).argv;
-
-	const configName = argv['joplin-plugin-config'];
+function main(environ) {
+	const configName = environ['joplin-plugin-config'];
 	if (!configName) throw new Error('A config file must be specified via the --joplin-plugin-config flag');
 
 	// Webpack configurations run in parallel, while we need them to run in
@@ -273,19 +285,19 @@ function main(processArgv) {
 	return configs[configName];
 }
 
-let exportedConfigs = [];
+module.exports = (env) => {
+	let exportedConfigs = [];
 
-try {
-	exportedConfigs = main(process.argv);
-} catch (error) {
-	console.error(chalk.red(error.message));
-	process.exit(1);
-}
+	try {
+		exportedConfigs = main(env);
+	} catch (error) {
+		console.error(error.message);
+		process.exit(1);
+	}
 
-if (!exportedConfigs.length) {
-	// Nothing to do - for example where there are no external scripts to
-	// compile.
-	process.exit(0);
-}
+	if (!exportedConfigs.length) {
+		process.exit(0);
+	}
 
-module.exports = exportedConfigs;
+	return exportedConfigs;
+};

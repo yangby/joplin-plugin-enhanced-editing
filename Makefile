@@ -2,8 +2,7 @@
 
 PLUGIN_ID := enhanced-editing
 
-NPM := NODE_OPTIONS="--openssl-legacy-provider" \
-		npm
+NPM := npm
 ARCHIVE_FILE := publish/org.yangby.joplin.plugins.${PLUGIN_ID}.jpl
 
 .PHONY: clean
