@@ -6,6 +6,22 @@ An enhanced editing plugin for [Joplin].
 
 [License]: https://img.shields.io/github/license/yangby/joplin-plugin-enhanced-editing.svg
 
+## Features
+
+- Expose some CodeMirror options.
+
+  Such as:
+  - Wrap for long lines or not.
+  - Show line numbers.
+  - Enable read-only mode.
+
+- Simple formatting.
+  - Format automatically before synchronize.
+  - Replace all tab characters with spaces.
+  - Remove trailing spaces at the end of the line.
+  - Merge multiple blank lines into a single.
+  - Ensure the last line of the file ends in a newline.
+
 ## References
 
 - [Joplin: Getting started with plugin development](https://joplinapp.org/api/get_started/plugins/)
